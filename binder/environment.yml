@@ -1,0 +1,39 @@
+name: pangenome-env
+# VERSION ABSOLUMENT MINIMALE
+# Seulement JupyterLab + Python + R dans conda
+# Tous les outils bioinformatiques via apt/pip
+
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+
+channel_priority: flexible
+
+dependencies:
+  # ============================================================================
+  # JUPYTER - STRICT MINIMUM
+  # ============================================================================
+  - jupyterlab>=3.6,<5
+  - notebook
+  - ipykernel
+  
+  # ============================================================================
+  # PYTHON - BASE SEULEMENT
+  # ============================================================================
+  - python=3.11
+  - pip
+  
+  # ============================================================================
+  # R - BASE SEULEMENT
+  # ============================================================================
+  - r-base=4.3
+  
+  # ============================================================================
+  # RIEN D'AUTRE !
+  # ============================================================================
+  # Tous les packages scientifiques installés via pip dans postBuild
+  # Tous les outils bioinformatiques installés via apt ou pip
+  
+  - pip:
+    - bash_kernel

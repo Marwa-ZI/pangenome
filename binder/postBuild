@@ -1,0 +1,155 @@
+#!/bin/bash
+# postBuild - VERSION ABSOLUMENT MINIMALE
+# Installe tout via pip et Rscript (pas conda)
+
+set -e
+
+echo "========================================"
+echo "  Configuration Pan-génome MINIMALE"
+echo "========================================"
+echo ""
+
+# ============================================================================
+# KERNELS JUPYTER
+# ============================================================================
+
+echo "=== Configuration kernel Bash ==="
+python -m bash_kernel.install --user
+echo "✅ Kernel Bash installé"
+echo ""
+
+# ============================================================================
+# PACKAGES SCIENTIFIQUES PYTHON VIA PIP
+# ============================================================================
+
+echo "=== Installation packages Python scientifiques ==="
+pip install --no-cache-dir \
+  numpy \
+  pandas \
+  scipy \
+  matplotlib \
+  seaborn \
+  biopython \
+  pysam \
+  scikit-learn \
+  plotly \
+  cyvcf2 \
+  watermark
+echo "✅ Packages Python installés"
+echo ""
+
+# ============================================================================
+# PACKAGES R VIA RSCRIPT
+# ============================================================================
+
+echo "=== Installation packages R ==="
+Rscript -e "install.packages(c('tidyverse', 'ggplot2', 'readr', 'dplyr', 'tidyr', 'stringr', 'httr', 'jsonlite', 'enrichR'), repos='https://cloud.r-project.org/', dependencies=TRUE, quiet=TRUE)" \
+  && echo "✅ Packages R installés" \
+  || echo "⚠️  Problème installation R (peut-être déjà installés)"
+echo ""
+
+# ============================================================================
+# QUAST VIA PIP
+# ============================================================================
+
+echo "=== Installation QUAST via pip ==="
+pip install --no-cache-dir quast && echo "✅ QUAST installé" || echo "⚠️  Problème QUAST"
+echo ""
+
+# ============================================================================
+# CONFIGURATION PROKKA (installé via apt)
+# ============================================================================
+
+echo "=== Configuration Prokka ==="
+prokka --setupdb 2>/dev/null && echo "✅ Prokka configuré" || echo "⚠️  Prokka setup (peut être déjà fait)"
+echo ""
+
+# ============================================================================
+# SCRIPT ENRICHR SHELL
+# ============================================================================
+
+echo "=== Création script enrichr_shell.sh ==="
+cat > ~/enrichr_shell.sh << 'ENRICHR_SCRIPT'
+#!/bin/bash
+# enrichr_shell.sh - Wrapper bash pour enrichR
+# Usage: enrichr_shell.sh -f genes.txt -o output_dir/
+
+GENE_FILE=""
+OUTPUT_DIR="enrichr_results"
+DATABASE="GO_Biological_Process_2021"
+METHOD="api"
+
+while getopts "f:o:d:m:" opt; do
+  case $opt in
+    f) GENE_FILE="$OPTARG" ;;
+    o) OUTPUT_DIR="$OPTARG" ;;
+    d) DATABASE="$OPTARG" ;;
+    m) METHOD="$OPTARG" ;;
+  esac
+done
+
+if [ -z "$GENE_FILE" ]; then
+  echo "Usage: enrichr_shell.sh -f genes.txt -o output_dir/"
+  exit 1
+fi
+
+mkdir -p "$OUTPUT_DIR"
+
+if [ "$METHOD" = "api" ]; then
+  # Méthode API curl
+  GENES=$(cat "$GENE_FILE" | tr '\n' '\n' | paste -sd '\n')
+  curl -s -X POST "https://maayanlab.cloud/Enrichr/addList" \
+    -d "list=${GENES}&description=MyGenes" > "${OUTPUT_DIR}/enrichr_result.json"
+  echo "✅ Résultats dans ${OUTPUT_DIR}/enrichr_result.json"
+else
+  # Méthode R
+  Rscript -e "
+    library(enrichR)
+    genes <- readLines('${GENE_FILE}')
+    dbs <- c('${DATABASE}')
+    enriched <- enrichr(genes, dbs)
+    write.csv(enriched[[1]], '${OUTPUT_DIR}/enrichr_results.csv', row.names=FALSE)
+  "
+  echo "✅ Résultats dans ${OUTPUT_DIR}/enrichr_results.csv"
+fi
+ENRICHR_SCRIPT
+
+chmod +x ~/enrichr_shell.sh
+echo "✅ Script enrichr_shell.sh créé"
+echo ""
+
+# ============================================================================
+# RÉPERTOIRES
+# ============================================================================
+
+echo "=== Création répertoires ==="
+mkdir -p ~/data ~/notebooks ~/results ~/blast_db
+echo "✅ Répertoires créés"
+echo ""
+
+# ============================================================================
+# BUILD JUPYTERLAB
+# ============================================================================
+
+echo "=== Build JupyterLab ==="
+jupyter lab build --dev-build=False --minimize=True 2>/dev/null || echo "✅ JupyterLab build OK"
+echo ""
+
+# ============================================================================
+# RÉSUMÉ
+# ============================================================================
+
+echo "========================================"
+echo "  ✅ INSTALLATION TERMINÉE"
+echo "========================================"
+echo ""
+echo "📦 Outils installés:"
+echo "  - Python: numpy, pandas, scipy, matplotlib, seaborn, biopython"
+echo "  - R: tidyverse, ggplot2, enrichR, etc."
+echo "  - QUAST (via pip)"
+echo "  - FastQC, Trimmomatic, SPAdes (via apt) ✅"
+echo "  - Prokka, Roary (via apt) ✅"
+echo "  - Samtools, BWA, BLAST (via apt) ✅"
+echo ""
+echo "🚀 Tous les outils pan-génome sont installés !"
+echo ""

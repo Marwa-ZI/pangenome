@@ -35,6 +35,15 @@ libjpeg-dev
 python3-pil
 python3-tk
 ghostscript
+# Outils bioinformatiques
+ncbi-blast+
+samtools
+bwa
+fastqc
+trimmomatic
+spades
+prokka
+roary
 libdb5.3
 ncbi-blast+
 default-jre
@@ -42,3 +51,4 @@ default-jdk
 make
 gcc
 g++
+
