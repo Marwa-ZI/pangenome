@@ -48,16 +48,6 @@ prokka --setupdb 2>/dev/null || echo "✅ Prokka database configured"
 echo ""
 
 # ============================================================================
-# BAKTA
-# ============================================================================
-
-echo "=== Information Bakta ==="
-echo "Bakta est installé."
-echo "Pour utiliser Bakta, téléchargez la base de données avec:"
-echo "  bakta_db download --output ~/bakta_db"
-echo ""
-
-# ============================================================================
 # BLAST
 # ============================================================================
 
@@ -153,7 +143,7 @@ echo "========================================"
 echo ""
 echo "📦 Outils installés:"
 echo "  - FastQC, Trimmomatic, SPAdes, QUAST"
-echo "  - BLAST, MLST, Prokka, Bakta, Roary"
+echo "  - BLAST, MLST, Prokka, Roary"
 echo "  - R 4.3 + enrichR"
 echo ""
 echo "🎯 Kernels Jupyter:"

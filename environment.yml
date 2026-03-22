@@ -1,11 +1,12 @@
 name: pangenome-env
-# Environnement pan-génome minimal
+# Environnement pan-génome minimal CORRIGÉ
 # Outils : FastQC, Trimmomatic, SPAdes, QUAST, BLAST, Prokka, Roary, enrichR
 # Kernels : Python + Bash (SANS kernel R)
+# BAKTA RETIRÉ (conflit Perl avec Roary)
 
 channels:
-  - bioconda
   - conda-forge
+  - bioconda
   - defaults
 
 channel_priority: flexible
@@ -40,10 +41,7 @@ dependencies:
   # ============================================================================
   # R + PACKAGES (SANS KERNEL JUPYTER)
   # ============================================================================
-  # R de base
   - r-base=4.3
-  
-  # Packages R essentiels
   - r-tidyverse
   - r-ggplot2
   - r-readr
@@ -53,25 +51,19 @@ dependencies:
   - r-httr
   - r-jsonlite
   
-  # NOTE: r-irkernel NON installé = pas de kernel R dans Jupyter
-  # enrichR sera installé via pip install (dans postBuild)
-  
   # ============================================================================
-  # OUTILS BIOINFORMATIQUES
+  # OUTILS BIOINFORMATIQUES - VERSIONS COMPATIBLES
   # ============================================================================
   
   # Contrôle qualité
   - fastqc
   - multiqc
-  - qualimap
   
   # Trimming
-  - fastp
   - trimmomatic
   
   # Mapping/SAM
   - bwa
-  - bwa-mem2
   - samtools
   - htslib
   
@@ -85,24 +77,19 @@ dependencies:
   - blast
   - mlst
   
-  # Annotation
+  # Annotation (Prokka SEULEMENT, pas Bakta)
   - prokka
-  - bakta
   
   # Pan-génome
   - roary
   
   # Outils support
   - hmmer
-  - muscle
   - cd-hit
-  - bbmap
   
-  # Perl (pour Prokka/Roary)
+  # Perl (version compatible Roary + Prokka + QUAST)
   - perl
   - perl-bioperl
-  - perl-xml-simple
-  - perl-digest-md5
   
   # ============================================================================
   # INSTALLATIONS VIA PIP
