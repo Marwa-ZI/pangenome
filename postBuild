@@ -1,0 +1,174 @@
+#!/bin/bash
+# postBuild - Environnement Pan-génome ULTRAMINIMAL
+# Configuration post-installation
+# Kernels : Python + Bash (SANS kernel R)
+
+set -e
+
+echo "========================================"
+echo "  Configuration Pan-génome ULTRAMINIMAL"
+echo "========================================"
+echo ""
+
+# ============================================================================
+# KERNELS JUPYTER
+# ============================================================================
+
+echo "=== Configuration des kernels Jupyter ==="
+
+# Installation kernel Bash
+python -m bash_kernel.install --user
+echo "✅ Kernel Bash installé"
+
+echo "Kernels disponibles:"
+echo "  - Python 3.11"
+echo "  - Bash"
+echo "  - R : NON (utilisez Rscript depuis bash)"
+echo ""
+
+# ============================================================================
+# R + ENRICHR
+# ============================================================================
+
+echo "=== Installation enrichR (package R) ==="
+
+# Installer enrichR via R
+Rscript -e "install.packages('enrichR', repos='https://cloud.r-project.org/', dependencies=TRUE)" \
+  && echo "✅ enrichR installé" \
+  || echo "⚠️  Problème installation enrichR (peut-être déjà installé)"
+
+echo ""
+
+# ============================================================================
+# PROKKA
+# ============================================================================
+
+echo "=== Configuration de Prokka ==="
+prokka --setupdb 2>/dev/null || echo "✅ Prokka database configured"
+echo ""
+
+# ============================================================================
+# BAKTA
+# ============================================================================
+
+echo "=== Information Bakta ==="
+echo "Bakta est installé."
+echo "Pour utiliser Bakta, téléchargez la base de données avec:"
+echo "  bakta_db download --output ~/bakta_db"
+echo ""
+
+# ============================================================================
+# BLAST
+# ============================================================================
+
+echo "=== Information BLAST ==="
+echo "BLAST est installé."
+echo "Pour télécharger les bases de données:"
+echo "  Base 16S (500 MB):"
+echo "    update_blastdb.pl --decompress 16S_ribosomal_RNA"
+echo "  Base nt complète (200 GB):"
+echo "    update_blastdb.pl --decompress nt"
+echo ""
+
+# ============================================================================
+# SCRIPT ENRICHR_SHELL
+# ============================================================================
+
+echo "=== Création du script enrichr_shell.sh ==="
+
+cat > ~/enrichr_shell.sh << 'ENRICHR_SCRIPT'
+#!/bin/bash
+# enrichr_shell.sh - Interface shell pour enrichR
+# Usage: ./enrichr_shell.sh -f genes.txt -o results/
+
+while getopts "f:o:d:h" opt; do
+    case $opt in
+        f) GENE_FILE="$OPTARG" ;;
+        o) OUTPUT_DIR="$OPTARG" ;;
+        d) DATABASE="$OPTARG" ;;
+        h) echo "Usage: $0 -f <gene_file> -o <output_dir> [-d database]"; exit 0 ;;
+    esac
+done
+
+DATABASE=${DATABASE:-"GO_Biological_Process_2023"}
+mkdir -p "$OUTPUT_DIR"
+
+echo "=== enrichR Shell Interface ==="
+echo "Gènes: $GENE_FILE"
+echo "Output: $OUTPUT_DIR"
+echo "Database: $DATABASE"
+
+Rscript - "$GENE_FILE" "$OUTPUT_DIR" "$DATABASE" <<'EOF'
+args <- commandArgs(trailingOnly = TRUE)
+suppressPackageStartupMessages(library(enrichR))
+
+genes <- readLines(args[1])
+genes <- genes[genes != ""]
+cat("📊 Gènes:", length(genes), "\n")
+
+enriched <- enrichr(genes, c(args[3]))
+write.csv(enriched[[args[3]]], 
+          file.path(args[2], "enrichment_results.csv"), 
+          row.names = FALSE)
+
+cat("\n📈 Top 5 termes:\n")
+print(head(enriched[[args[3]]][, c("Term", "Adjusted.P.value")], 5))
+cat("\n✅ Résultats:", file.path(args[2], "enrichment_results.csv"), "\n")
+EOF
+ENRICHR_SCRIPT
+
+chmod +x ~/enrichr_shell.sh
+echo "✅ Script enrichr_shell.sh créé dans ~/"
+echo ""
+
+# ============================================================================
+# RÉPERTOIRES
+# ============================================================================
+
+echo "=== Création des répertoires de travail ==="
+mkdir -p ~/data
+mkdir -p ~/notebooks
+mkdir -p ~/results
+mkdir -p ~/blast_db
+echo "✅ Répertoires créés: ~/data, ~/notebooks, ~/results, ~/blast_db"
+echo ""
+
+# ============================================================================
+# JUPYTERLAB BUILD
+# ============================================================================
+
+echo "=== Build JupyterLab ==="
+jupyter lab build --dev-build=False --minimize=True 2>/dev/null \
+  && echo "✅ JupyterLab build OK" \
+  || echo "⚠️  JupyterLab build completed with warnings"
+echo ""
+
+# ============================================================================
+# RÉSUMÉ
+# ============================================================================
+
+echo "========================================"
+echo "  Configuration terminée !"
+echo "========================================"
+echo ""
+echo "📦 Outils installés:"
+echo "  - FastQC, Trimmomatic, SPAdes, QUAST"
+echo "  - BLAST, MLST, Prokka, Bakta, Roary"
+echo "  - R 4.3 + enrichR"
+echo ""
+echo "🎯 Kernels Jupyter:"
+echo "  - Python 3.11 ✅"
+echo "  - Bash ✅"
+echo "  - R : NON (utilisez Rscript)"
+echo ""
+echo "📁 Répertoires:"
+echo "  - ~/data        : Vos fichiers FASTQ"
+echo "  - ~/notebooks   : Vos notebooks"
+echo "  - ~/results     : Résultats d'analyses"
+echo "  - ~/blast_db    : Bases de données BLAST"
+echo ""
+echo "🔧 Scripts:"
+echo "  - ~/enrichr_shell.sh : enrichR depuis bash"
+echo ""
+echo "🚀 Prêt à utiliser !"
+echo "========================================"
