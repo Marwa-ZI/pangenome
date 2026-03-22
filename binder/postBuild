@@ -1,11 +1,10 @@
 #!/bin/bash
-# postBuild - VERSION ABSOLUMENT MINIMALE
-# Installe tout via pip et Rscript (pas conda)
+# postBuild - VERSION AVEC CONFIGURATION TRIMMOMATIC
 
 set -e
 
 echo "========================================"
-echo "  Configuration Pan-génome MINIMALE"
+echo "  CONFIGURATION ENVIRONNEMENT"
 echo "========================================"
 echo ""
 
@@ -15,14 +14,14 @@ echo ""
 
 echo "=== Configuration kernel Bash ==="
 python -m bash_kernel.install --user
-echo "✅ Kernel Bash installé"
+echo " Kernel Bash installé"
 echo ""
 
 # ============================================================================
-# PACKAGES SCIENTIFIQUES PYTHON VIA PIP
+# PACKAGES PYTHON VIA PIP
 # ============================================================================
 
-echo "=== Installation packages Python scientifiques ==="
+echo "=== Installation packages Python ==="
 pip install --no-cache-dir \
   numpy \
   pandas \
@@ -35,7 +34,7 @@ pip install --no-cache-dir \
   plotly \
   cyvcf2 \
   watermark
-echo "✅ Packages Python installés"
+echo " Packages Python installés"
 echo ""
 
 # ============================================================================
@@ -44,78 +43,182 @@ echo ""
 
 echo "=== Installation packages R ==="
 Rscript -e "install.packages(c('tidyverse', 'ggplot2', 'readr', 'dplyr', 'tidyr', 'stringr', 'httr', 'jsonlite', 'enrichR'), repos='https://cloud.r-project.org/', dependencies=TRUE, quiet=TRUE)" \
-  && echo "✅ Packages R installés" \
-  || echo "⚠️  Problème installation R (peut-être déjà installés)"
+  && echo " Packages R installés" \
+  || echo "  Packages R possiblement déjà installés"
 echo ""
 
 # ============================================================================
 # QUAST VIA PIP
 # ============================================================================
 
-echo "=== Installation QUAST via pip ==="
-pip install --no-cache-dir quast && echo "✅ QUAST installé" || echo "⚠️  Problème QUAST"
+echo "=== Installation QUAST ==="
+pip install --no-cache-dir quast && echo " QUAST installé" || echo " Problème QUAST"
 echo ""
 
 # ============================================================================
-# CONFIGURATION PROKKA (installé via apt)
+# CONFIGURATION TRIMMOMATIC
 # ============================================================================
 
-echo "=== Configuration Prokka ==="
-prokka --setupdb 2>/dev/null && echo "✅ Prokka configuré" || echo "⚠️  Prokka setup (peut être déjà fait)"
+echo "=== Configuration Trimmomatic ==="
+
+# Trimmomatic est installé via apt mais nécessite un wrapper
+# Trouver le JAR de Trimmomatic
+TRIMMOMATIC_JAR=$(find /usr/share -name "trimmomatic*.jar" 2>/dev/null | head -1)
+
+if [ -n "$TRIMMOMATIC_JAR" ]; then
+    echo "Trimmomatic JAR trouvé: $TRIMMOMATIC_JAR"
+    
+    # Créer un wrapper pour faciliter l'utilisation
+    cat > ~/trimmomatic_wrapper.sh << EOF
+#!/bin/bash
+# Wrapper Trimmomatic
+java -jar $TRIMMOMATIC_JAR "\$@"
+EOF
+    chmod +x ~/trimmomatic_wrapper.sh
+    
+    # Créer un lien symbolique dans ~/bin
+    mkdir -p ~/bin
+    ln -sf ~/trimmomatic_wrapper.sh ~/bin/trimmomatic
+    
+    # Ajouter ~/bin au PATH si pas déjà fait
+    if ! grep -q 'export PATH="$HOME/bin:$PATH"' ~/.bashrc 2>/dev/null; then
+        echo 'export PATH="$HOME/bin:$PATH"' >> ~/.bashrc
+    fi
+    
+    echo "Wrapper Trimmomatic créé: ~/bin/trimmomatic"
+    echo "   Utilisation: trimmomatic PE ..."
+else
+    echo "Trimmomatic JAR non trouvé - installation apt peut avoir échoué"
+    echo "   Solution: Installer via conda en ajoutant 'trimmomatic' à environment.yml"
+fi
 echo ""
 
 # ============================================================================
-# SCRIPT ENRICHR SHELL
+# VÉRIFICATION MLST
+# ============================================================================
+
+echo "=== Vérification MLST ==="
+if command -v mlst &>/dev/null; then
+    echo " MLST installé: $(which mlst)"
+    mlst --version 2>/dev/null || echo "   (version non détectable)"
+else
+    echo " MLST non trouvé - vérifier environment.yml"
+fi
+echo ""
+
+# ============================================================================
+# SCRIPT ENRICHR
 # ============================================================================
 
 echo "=== Création script enrichr_shell.sh ==="
 cat > ~/enrichr_shell.sh << 'ENRICHR_SCRIPT'
 #!/bin/bash
 # enrichr_shell.sh - Wrapper bash pour enrichR
-# Usage: enrichr_shell.sh -f genes.txt -o output_dir/
 
 GENE_FILE=""
 OUTPUT_DIR="enrichr_results"
 DATABASE="GO_Biological_Process_2021"
-METHOD="api"
 
-while getopts "f:o:d:m:" opt; do
+while getopts "f:o:d:" opt; do
   case $opt in
     f) GENE_FILE="$OPTARG" ;;
     o) OUTPUT_DIR="$OPTARG" ;;
     d) DATABASE="$OPTARG" ;;
-    m) METHOD="$OPTARG" ;;
   esac
 done
 
 if [ -z "$GENE_FILE" ]; then
-  echo "Usage: enrichr_shell.sh -f genes.txt -o output_dir/"
+  echo "Usage: enrichr_shell.sh -f genes.txt [-o output_dir] [-d database]"
   exit 1
 fi
 
 mkdir -p "$OUTPUT_DIR"
 
-if [ "$METHOD" = "api" ]; then
-  # Méthode API curl
-  GENES=$(cat "$GENE_FILE" | tr '\n' '\n' | paste -sd '\n')
-  curl -s -X POST "https://maayanlab.cloud/Enrichr/addList" \
-    -d "list=${GENES}&description=MyGenes" > "${OUTPUT_DIR}/enrichr_result.json"
-  echo "✅ Résultats dans ${OUTPUT_DIR}/enrichr_result.json"
-else
-  # Méthode R
-  Rscript -e "
-    library(enrichR)
-    genes <- readLines('${GENE_FILE}')
-    dbs <- c('${DATABASE}')
-    enriched <- enrichr(genes, dbs)
-    write.csv(enriched[[1]], '${OUTPUT_DIR}/enrichr_results.csv', row.names=FALSE)
-  "
-  echo "✅ Résultats dans ${OUTPUT_DIR}/enrichr_results.csv"
-fi
+Rscript -e "
+  library(enrichR)
+  genes <- readLines('${GENE_FILE}')
+  dbs <- c('${DATABASE}')
+  enriched <- enrichr(genes, dbs)
+  write.csv(enriched[[1]], '${OUTPUT_DIR}/enrichr_results.csv', row.names=FALSE)
+"
+
+echo " Résultats dans ${OUTPUT_DIR}/enrichr_results.csv"
 ENRICHR_SCRIPT
 
 chmod +x ~/enrichr_shell.sh
-echo "✅ Script enrichr_shell.sh créé"
+echo " Script enrichr_shell.sh créé"
+echo ""
+
+# ============================================================================
+# SCRIPTS DE CONFIGURATION BASES DE DONNÉES
+# ============================================================================
+
+echo "=== Création scripts configuration DB ==="
+
+# Script Prokka DB
+cat > ~/setup_prokka_db.sh << 'PROKKA_SCRIPT'
+#!/bin/bash
+echo "=========================================="
+echo "  CONFIGURATION PROKKA DATABASE"
+echo "=========================================="
+echo ""
+if command -v prokka &>/dev/null; then
+    echo "Configuration en cours..."
+    prokka --setupdb
+    if [ $? -eq 0 ]; then
+        echo ""
+        echo " Prokka DB configurée"
+        prokka --listdb 2>/dev/null || true
+    else
+        echo " Erreur configuration Prokka"
+    fi
+else
+    echo " Prokka non installé"
+fi
+echo ""
+PROKKA_SCRIPT
+chmod +x ~/setup_prokka_db.sh
+
+# Script BLAST DB
+cat > ~/setup_blast_db.sh << 'BLAST_SCRIPT'
+#!/bin/bash
+echo "=========================================="
+echo "  TÉLÉCHARGEMENT BLAST DATABASE"
+echo "=========================================="
+echo ""
+echo "Options:"
+echo "  1) 16S_ribosomal_RNA (~500 MB)  - Test"
+echo "  2) nt (~200 GB)                 - Complet"
+echo "  3) swissprot (~500 MB)          - Protéines"
+echo ""
+read -p "Votre choix (1-3): " choice
+
+mkdir -p ~/blast_db
+cd ~/blast_db
+
+case $choice in
+    1) DB="16S_ribosomal_RNA" ;;
+    2) DB="nt" ;;
+    3) DB="swissprot" ;;
+    *) echo " Choix invalide"; exit 1 ;;
+esac
+
+echo ""
+echo "Téléchargement de $DB..."
+update_blastdb.pl --decompress "$DB"
+
+if [ $? -eq 0 ]; then
+    echo ""
+    echo " Database $DB téléchargée dans ~/blast_db"
+    ls -lh ~/blast_db/${DB}* 2>/dev/null | head -5
+else
+    echo " Erreur téléchargement"
+fi
+echo ""
+BLAST_SCRIPT
+chmod +x ~/setup_blast_db.sh
+
+echo " Scripts DB créés"
 echo ""
 
 # ============================================================================
@@ -123,8 +226,8 @@ echo ""
 # ============================================================================
 
 echo "=== Création répertoires ==="
-mkdir -p ~/data ~/notebooks ~/results ~/blast_db
-echo "✅ Répertoires créés"
+mkdir -p ~/data ~/notebooks ~/results ~/blast_db ~/bin
+echo " Répertoires créés"
 echo ""
 
 # ============================================================================
@@ -132,24 +235,23 @@ echo ""
 # ============================================================================
 
 echo "=== Build JupyterLab ==="
-jupyter lab build --dev-build=False --minimize=True 2>/dev/null || echo "✅ JupyterLab build OK"
+jupyter lab build --dev-build=False --minimize=True 2>/dev/null || echo " JupyterLab OK"
 echo ""
 
 # ============================================================================
-# RÉSUMÉ
+# RÉSUMÉ FINAL
 # ============================================================================
 
-echo "========================================"
-echo "  ✅ INSTALLATION TERMINÉE"
-echo "========================================"
+echo "=========================================="
+echo "   INSTALLATION TERMINÉE"
+echo "=========================================="
 echo ""
-echo "📦 Outils installés:"
-echo "  - Python: numpy, pandas, scipy, matplotlib, seaborn, biopython"
-echo "  - R: tidyverse, ggplot2, enrichR, etc."
-echo "  - QUAST (via pip)"
-echo "  - FastQC, Trimmomatic, SPAdes (via apt) ✅"
-echo "  - Prokka, Roary (via apt) ✅"
-echo "  - Samtools, BWA, BLAST (via apt) ✅"
-echo ""
-echo "🚀 Tous les outils pan-génome sont installés !"
+echo " Outils installés:"
+echo "  - Python: numpy, pandas, biopython, etc."
+echo "  - R: tidyverse, enrichR, etc."
+echo "  - QUAST (pip)"
+echo "  - FastQC, SPAdes, Prokka, Roary (apt)"
+echo "  - Samtools, BWA, BLAST (apt)"
+echo "  - Trimmomatic (apt + wrapper)"
+echo "  - MLST (conda)"
 echo ""
