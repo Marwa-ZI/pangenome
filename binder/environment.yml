@@ -1,7 +1,6 @@
 name: pangenome-env
-# VERSION ABSOLUMENT MINIMALE
-# Seulement JupyterLab + Python + R dans conda
-# Tous les outils bioinformatiques via apt/pip
+# VERSION CORRIGÉE - Avec MLST
+# Trimmomatic via apt, MLST via conda
 
 channels:
   - conda-forge
@@ -12,28 +11,31 @@ channel_priority: flexible
 
 dependencies:
   # ============================================================================
-  # JUPYTER - STRICT MINIMUM
+  # JUPYTER - MINIMAL
   # ============================================================================
   - jupyterlab>=3.6,<5
   - notebook
   - ipykernel
   
   # ============================================================================
-  # PYTHON - BASE SEULEMENT
+  # PYTHON - BASE
   # ============================================================================
   - python=3.11
   - pip
   
   # ============================================================================
-  # R - BASE SEULEMENT
+  # R - BASE
   # ============================================================================
   - r-base=4.3
   
   # ============================================================================
-  # RIEN D'AUTRE !
+  # MLST - Seul outil bioinformatique dans conda
+  # (car pas disponible dans apt)
   # ============================================================================
-  # Tous les packages scientifiques installés via pip dans postBuild
-  # Tous les outils bioinformatiques installés via apt ou pip
+  - mlst
   
+  # ============================================================================
+  # PIP PACKAGES
+  # ============================================================================
   - pip:
     - bash_kernel
