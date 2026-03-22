@@ -1,8 +1,8 @@
 name: pangenome-env
-# Environnement pan-génome minimal CORRIGÉ
-# Outils : FastQC, Trimmomatic, SPAdes, QUAST, BLAST, Prokka, Roary, enrichR
+# Environnement pan-génome - SOLUTION FINALE
+# QUAST installé via apt.txt (package Ubuntu)
+# Roary installé via conda (sans conflit Perl)
 # Kernels : Python + Bash (SANS kernel R)
-# BAKTA RETIRÉ (conflit Perl avec Roary)
 
 channels:
   - conda-forge
@@ -52,7 +52,7 @@ dependencies:
   - r-jsonlite
   
   # ============================================================================
-  # OUTILS BIOINFORMATIQUES - VERSIONS COMPATIBLES
+  # OUTILS BIOINFORMATIQUES
   # ============================================================================
   
   # Contrôle qualité
@@ -70,14 +70,14 @@ dependencies:
   # Assemblage
   - spades
   
-  # Qualité assemblage
-  - quast
+  # QUAST installé via apt.txt (package Ubuntu)
+  # Pas de quast ici pour éviter conflit Perl avec Roary
   
   # Identification
   - blast
   - mlst
   
-  # Annotation (Prokka SEULEMENT, pas Bakta)
+  # Annotation
   - prokka
   
   # Pan-génome
@@ -87,9 +87,7 @@ dependencies:
   - hmmer
   - cd-hit
   
-  # Perl (version compatible Roary + Prokka + QUAST)
-  - perl
-  - perl-bioperl
+  # Perl géré automatiquement par conda pour Prokka et Roary
   
   # ============================================================================
   # INSTALLATIONS VIA PIP

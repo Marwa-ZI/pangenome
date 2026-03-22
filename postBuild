@@ -48,6 +48,15 @@ prokka --setupdb 2>/dev/null || echo "✅ Prokka database configured"
 echo ""
 
 # ============================================================================
+# QUAST (via pip, incompatible avec Roary dans conda)
+# ============================================================================
+
+echo "=== Installation QUAST via pip ==="
+pip install quast --no-deps || pip install quast
+echo "✅ QUAST installé via pip"
+echo ""
+
+# ============================================================================
 # BLAST
 # ============================================================================
 
@@ -142,7 +151,8 @@ echo "  Configuration terminée !"
 echo "========================================"
 echo ""
 echo "📦 Outils installés:"
-echo "  - FastQC, Trimmomatic, SPAdes, QUAST"
+echo "  - FastQC, Trimmomatic, SPAdes"
+echo "  - QUAST (via pip)"
 echo "  - BLAST, MLST, Prokka, Roary"
 echo "  - R 4.3 + enrichR"
 echo ""
